@@ -58,10 +58,10 @@ A collection of data set loading functions.
 
 ## install
 
-```pip install git+https://git.sr.ht/~spe/dataload```
+`pip install git+https://github.com/neospe/dataload`
 
 ## good to know
 
-- ```dataload``` is built into [augment](https://git.sr.ht/~spe/augment), [bpemb](https://git.sr.ht/~spe/bpemb), and [autofit](https://git.sr.ht/~spe/autofit) as well as [autofit2](https://git.sr.ht/~spe/autofit2).
+- `dataload` is built into [augment](https://github.com/neospe/augment), [bpemb](https://github.com/neospe/bpemb), and [autofit](https://github.com/neospe/autofit) as well as [autofit2](https://github.com/neospe/autofit2).
 - The paper _Antypas & Camacho-Collados - Robust Hate Speech Detection in Social Media: A Cross-Dataset Empirical Evaluation_ [[arxiv link](https://arxiv.org/abs/2307.01680)] backs up some of our re-labelings and selective use of certain data sets in order to improve data aggregation.
 
