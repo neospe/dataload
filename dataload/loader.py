@@ -5,27 +5,39 @@ import json
 import pandas as pd
 
 # data lake
+# set DATALAKE_ADDR to load from gridfs by default, otherwise files are read from the local fs
 from io import StringIO, BytesIO
-from pymongo import MongoClient
-import gridfs
 DB_ADDR = os.environ.get('DATALAKE_ADDR', '127.0.0.1:27017')
 DB_NAME = 'datalake'
+LOCAL = 'DATALAKE_ADDR' not in os.environ
+
+
+def datalake(local=LOCAL):
+    """
+    returns a gridfs handle, or None for local files
+    pymongo is only needed for the data lake
+    """
+    if local:
+        return None
+    from pymongo import MongoClient
+    import gridfs
+    db = MongoClient(DB_ADDR)
+    return gridfs.GridFS(db[DB_NAME])
 
 
 # general loading functions
 
-def wordlist(files=None, local=False, silent=True):
+def wordlist(files=None, local=LOCAL, silent=True):
     """
     loader for various wordlists
     takes one or more paths as input and outputs the parsed and concatenated data
 
     arguments:
     files: list of paths (local fs) or names (gridfs)
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
-    db = MongoClient(DB_ADDR)
-    fs = gridfs.GridFS(db[DB_NAME])
+    fs = datalake(local)
     
     swear_list = []
     for path in files:
@@ -43,19 +55,18 @@ def wordlist(files=None, local=False, silent=True):
         f.close()
     return list(set(swear_list))
 
-def augmentations(files=None, local=False, silent=True):
+def augmentations(files=None, local=LOCAL, silent=True):
     """
     loader for dataset-specific augmentations
 
     files:
        1. pfad zu backlog.json
        2. path(s): muss dataset_name aus backlog enthalten, der in eine augmentation-uid übersetzt wird, anhand der die daten von gridfs bzw. lokalem fs geladen werden können
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
     AUGS_BASEPATH = 'data/hexis/augmentations'
-    db = MongoClient(DB_ADDR)
-    fs = gridfs.GridFS(db[DB_NAME])
+    fs = datalake(local)
 
     """
     TODO: backlog nicht in gridfs speichern -> siehe training.md/augmentation/NEU
@@ -83,7 +94,7 @@ def augmentations(files=None, local=False, silent=True):
     
     return data
 
-def relabel(files=None, local=False, silent=True):
+def relabel(files=None, local=LOCAL, silent=True):
     """
     loader for files in aggression/re-labeling
     takes one or more paths as input and outputs the parsed and concatenated data
@@ -91,11 +102,10 @@ def relabel(files=None, local=False, silent=True):
 
     arguments:
     files: list of paths (local fs) or names (gridfs)
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
-    db = MongoClient(DB_ADDR)
-    fs = gridfs.GridFS(db[DB_NAME])
+    fs = datalake(local)
 
     data = []
     for path in files:
@@ -132,7 +142,7 @@ def relabel(files=None, local=False, silent=True):
 
     return data
 
-def debias_madlibs(files=None, local=False, silent=True):
+def debias_madlibs(files=None, local=LOCAL, silent=True):
     """
     loader for files in unintended-ml-bias-analysis/unintended_ml_bias/eval_datasets
     takes one or more paths as input and outputs the parsed and concatenated data
@@ -141,11 +151,10 @@ def debias_madlibs(files=None, local=False, silent=True):
 
     arguments:
     files: list of paths (local fs) or names (gridfs)
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
-    db = MongoClient(DB_ADDR)
-    fs = gridfs.GridFS(db[DB_NAME])
+    fs = datalake(local)
     
     data = []
     for path in files:
@@ -178,7 +187,7 @@ def debias_madlibs(files=None, local=False, silent=True):
 
     return data
 
-def twint(files=None, local=False, silent=True):
+def twint(files=None, local=LOCAL, silent=True):
     """
     loads the output of twint scraper
     takes one or more paths as input and outputs the parsed and concatenated data
@@ -186,11 +195,10 @@ def twint(files=None, local=False, silent=True):
 
     arguments:
     files: list of paths (local fs) or names (gridfs)
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
-    db = MongoClient(DB_ADDR)
-    fs = gridfs.GridFS(db[DB_NAME])
+    fs = datalake(local)
 
     data = []
     for path in files:
@@ -215,7 +223,7 @@ def twint(files=None, local=False, silent=True):
 
 # multilingual
 
-def conan(lang, files=None, local=False, silent=True):
+def conan(lang, files=None, local=LOCAL, silent=True):
     """
     CONAN (en/fr/it)
     collection von hate- und counterspeech beispielen
@@ -229,8 +237,7 @@ def conan(lang, files=None, local=False, silent=True):
         return []
     
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['CONAN/CONAN.csv']
 
@@ -269,7 +276,7 @@ def conan(lang, files=None, local=False, silent=True):
                 data.append(post)
     return data
 
-def mlma_hate(lang, files=None, local=False, silent=True):
+def mlma_hate(lang, files=None, local=LOCAL, silent=True):
     """
     MLMA_hate_speech (ar/en/fr)
     fr: 4014 bsp, exkl. bsp die '…' enthalten -> 2808 bsp
@@ -282,8 +289,7 @@ def mlma_hate(lang, files=None, local=False, silent=True):
         return []
 
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['hate_speech_mlma/'+lang.lower()+'_dataset.csv']
 
@@ -310,7 +316,7 @@ def mlma_hate(lang, files=None, local=False, silent=True):
         data.append(post)
     return data
 
-def largescale_hate(lang, files=None, local=False, silent=True):
+def largescale_hate(lang, files=None, local=LOCAL, silent=True):
     """
     largescale-hatespeech (en/tr)
     100k bsp, classes: Normal (0), Offensive (1), Hate (2)
@@ -323,8 +329,7 @@ def largescale_hate(lang, files=None, local=False, silent=True):
         return []
 
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/multi/en, tr/largescale-hatespeech/hate_speech_dataset-tweets.jsonl',
                     '/multi/en, tr/largescale-hatespeech/hate_speech_dataset.csv']
@@ -370,7 +375,7 @@ def largescale_hate(lang, files=None, local=False, silent=True):
     #print(count_notfound, 'labels not found')
     return data
 
-def hateval2019(lang, files=None, local=False, silent=True):
+def hateval2019(lang, files=None, local=LOCAL, silent=True):
     """
     hateval2019 (en/es)
     6600 bsp, classes: 0 (non-hate), 1 (hate) -> falls hate: Target Range (0/1), Aggressiveness (0/1)
@@ -382,8 +387,7 @@ def hateval2019(lang, files=None, local=False, silent=True):
         return []
 
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/multi/en, es/hateval2019/hateval2019_'+lang.lower()+'_train.csv',
                     '/multi/en, es/hateval2019/hateval2019_'+lang.lower()+'_dev.csv',
@@ -412,7 +416,7 @@ def hateval2019(lang, files=None, local=False, silent=True):
             data.append(post)
     return data
 
-def hasoc2020(lang, files=None, local=False, silent=True):
+def hasoc2020(lang, files=None, local=LOCAL, silent=True):
     """
     hasoc-2020 (de/en/hi)
     je ca. 3k bsp, classes: task 1 (NOT/HOF), task 2 (NONE/PRFN/OFFN/HATE)
@@ -423,8 +427,7 @@ def hasoc2020(lang, files=None, local=False, silent=True):
         return []
 
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/multi/de, en, hi/hasoc-2020/hasoc_2020_'+lang.lower()+'_train_new.xlsx',
                     '/multi/de, en, hi/hasoc-2020/hasoc_2020_'+lang.lower()+'_test_new.xlsx']
@@ -457,7 +460,7 @@ def hasoc2020(lang, files=None, local=False, silent=True):
 
 # english
 
-def en_hate1(files=None, local=False, silent=True):
+def en_hate1(files=None, local=LOCAL, silent=True):
     """
     source: https://github.com/t-davidson/hate-speech-and-offensive-language
     file: labeled_data.csv, len: 24783
@@ -465,12 +468,11 @@ def en_hate1(files=None, local=False, silent=True):
 
     arguments:
     files: list of paths (local fs) or names (gridfs) -> default: see below
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/en/hate-speech-and-offensive-language/data/labeled_data.csv']
 
@@ -513,7 +515,7 @@ def en_hate1(files=None, local=False, silent=True):
     f.close()
     return data
     
-def en_hate2(files=None, local=False, silent=True):
+def en_hate2(files=None, local=LOCAL, silent=True):
     """
     https://github.com/zeerakw/hatespeech bzw. https://github.com/amyhemmeter/AutomaticDetectionofHateSpeech
     text: hatespeech.csv, labels: NAACL_SRW_2016.csv, len: 16035
@@ -522,12 +524,11 @@ def en_hate2(files=None, local=False, silent=True):
 
     arguments:
     files: list of paths (local fs) or names (gridfs) -> default: see below
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/en/AutomaticDetectionofHateSpeech/hatespeech.csv',
                     '/en/hatespeech/NAACL_SRW_2016.csv']
@@ -572,7 +573,7 @@ def en_hate2(files=None, local=False, silent=True):
 
     return data
 
-def en_hate3(files=None, local=False, silent=True):
+def en_hate3(files=None, local=LOCAL, silent=True):
     """
     source: https://github.com/aitor-garcia-p/hate-speech-dataset
     labels: annotations_metadata.csv, text: all_files/*.txt, len: 10943
@@ -580,12 +581,11 @@ def en_hate3(files=None, local=False, silent=True):
 
     arguments:
     files: list of paths (local fs) or names (gridfs) -> default: see below
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/en/hate-speech-dataset/annotations_metadata.csv',
                     '/en/hate-speech-dataset/all_files']
@@ -637,7 +637,7 @@ def en_hate3(files=None, local=False, silent=True):
 
     return data
 
-def en_hate4(files=None, local=False, silent=True):
+def en_hate4(files=None, local=LOCAL, silent=True):
     """
     source: https://dataverse.mpi-sws.org/dataset.xhtml?persistentId=doi:10.5072/FK2/ZDTEMN (founta-corpus)
     text: hatespeechtwitter-tweets.csv, labels: hatespeechtwitter.tsv, len: 80000
@@ -646,12 +646,11 @@ def en_hate4(files=None, local=False, silent=True):
 
     arguments:
     files: list of paths (local fs) or names (gridfs) -> default: see below
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/en/founta-corpus/hatespeechtwitter-tweets.csv',
                     '/en/founta-corpus/hatespeechtwitter.tsv',
@@ -783,7 +782,7 @@ def en_delft(PATHS):
     return data
 """
 
-def en_offense19(files=None, local=False, silent=True):
+def en_offense19(files=None, local=LOCAL, silent=True):
     """
     source: OffensEval 2019 (SemEval 2019 - Task 6)
     files: offenseval-training-v1.tsv, re-lablings: OffensEval-2019-profanity-predicted-edit.csv, total len: 13240
@@ -793,12 +792,11 @@ def en_offense19(files=None, local=False, silent=True):
 
     arguments:
     files: list of paths (local fs) or names (gridfs) -> default: see below
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/en/OffensEval-2019/offenseval-training-v1.tsv',
                     '/en/re-labelings/OffensEval-2019-profanity-predicted-edit.csv']
@@ -859,19 +857,18 @@ def en_offense19(files=None, local=False, silent=True):
 
     return data
 
-def en_offense20(files=None, local=False, silent=True):
+def en_offense20(files=None, local=LOCAL, silent=True):
     """
     source: OffensEval 2020
     classes: OFF, NOT
     
     arguments:
     files: list of paths (local fs) or names (gridfs) -> default: see below
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/en/SOLID/semeval_test/test_a_tweets.tsv',
                     '/en/SOLID/semeval_test/test_a_labels.csv',
@@ -963,17 +960,16 @@ def en_offense20(files=None, local=False, silent=True):
 
     return data
 
-def en_olid(files=None, local=False, silent=True):
+def en_olid(files=None, local=LOCAL, silent=True):
     """
     OLID
     
     arguments:
     files: list of paths (local fs) or names (gridfs) -> default: see below
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/en/OLIDv1.0/testset-levela.tsv',
                     '/en/OLIDv1.0/labels-levela.csv']
@@ -1022,7 +1018,7 @@ def en_olid(files=None, local=False, silent=True):
 
     return data
 
-def en_hatexplain(files=None, local=False, silent=True):
+def en_hatexplain(files=None, local=LOCAL, silent=True):
     """
     source: HateXplain
     file: dataset.json
@@ -1031,12 +1027,11 @@ def en_hatexplain(files=None, local=False, silent=True):
 
     arguments:
     files: list of paths (local fs) or names (gridfs) -> default: see below
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/en/HateXplain/Data/dataset.json']
 
@@ -1070,7 +1065,7 @@ def en_hatexplain(files=None, local=False, silent=True):
 
     return data
 
-def en_malignant(files=None, local=False, silent=True):
+def en_malignant(files=None, local=LOCAL, silent=True):
     """
     MalignantCommentClassification
 
@@ -1084,12 +1079,11 @@ def en_malignant(files=None, local=False, silent=True):
 
     arguments:
     files: list of paths (local fs) or names (gridfs) -> default: see below
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/en/MalignantCommentClassification/train.csv']
 
@@ -1155,7 +1149,7 @@ def en_malignant(files=None, local=False, silent=True):
 
 """
 # not in use, data classes not mapping well to the rest
-def en_cad(files=None, local=False, silent=True):
+def en_cad(files=None, local=LOCAL, silent=True):
     # ContextualAbuseDataset
 
     # files: cad_v1_1_train.tsv, cad_v1_1_dev.tsv, cad_v1_1_test.tsv, len total: 23417
@@ -1168,7 +1162,7 @@ def en_cad(files=None, local=False, silent=True):
 
     # arguments:
     # files: list of paths (local fs) or names (gridfs) -> default: see below
-    # local: bool -> default: False
+    # local: bool -> default: True, unless DATALAKE_ADDR is set
     # silent: bool -> default: True
 
     if local == False:
@@ -1177,8 +1171,7 @@ def en_cad(files=None, local=False, silent=True):
                     'ContextualAbuseDataset/data/cad_v1_1_dev.tsv',
                     'ContextualAbuseDataset/data/cad_v1_1_test.tsv']
 
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
 
         query = {'filename': {'$regex': files[0]+'$'}} 
         grid_out = fs.find_one(query)
@@ -1223,7 +1216,7 @@ def en_cad(files=None, local=False, silent=True):
     return data
 """
 
-def en_threat1(files=None, local=False, silent=True):
+def en_threat1(files=None, local=LOCAL, silent=True):
     """
     Muschalik - Threatening in English. Appendix
 
@@ -1232,12 +1225,11 @@ def en_threat1(files=None, local=False, silent=True):
 
     arguments:
     files: list of paths (local fs) or names (gridfs) -> default: see below
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/hexis/hexis-english-threats/hexis-english-threats.txt']
 
@@ -1269,19 +1261,18 @@ def en_threat1(files=None, local=False, silent=True):
     f.close()
     return data
 
-def en_spam1(files=None, local=False, silent=True):
+def en_spam1(files=None, local=LOCAL, silent=True):
     """
     source: smsspamcollection
     classes: spam, ham
 
     arguments:
     files: list of paths (local fs) or names (gridfs) -> default: see below
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['smsspamcollection/SMSSpamCollection.txt']
 
@@ -1327,18 +1318,17 @@ def en_spam1(files=None, local=False, silent=True):
 
 # german
 
-def de_germeval(files=None, local=False, silent=True):
+def de_germeval(files=None, local=LOCAL, silent=True):
     """
     loader for various versions of the tab-separated germeval format
     takes one or more paths as input and outputs the parsed and concatenated data
 
     arguments:
     files: list of paths (local fs) or names (gridfs)
-    local: bool -> default: False
+    local: bool -> default: True, unless DATALAKE_ADDR is set
     silent: bool -> default: True
     """
-    db = MongoClient(DB_ADDR)
-    fs = gridfs.GridFS(db[DB_NAME])
+    fs = datalake(local)
 
     data = []
     for path in files:
@@ -1413,15 +1403,14 @@ def de_germeval2021(paths):
 
 # spanish
 
-def es_hate1(files=None, local=False, silent=True):
+def es_hate1(files=None, local=LOCAL, silent=True):
     """
     haternet: https://zenodo.org/record/2592149
     6k bsp, classes: 0 (no-offense), 1 (offense)
     anm: returns label als int
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/es/HaterNet/labeled_corpus_6K.txt']
         query = {'filename': {'$regex': files[0]+'$'}} 
@@ -1441,15 +1430,14 @@ def es_hate1(files=None, local=False, silent=True):
         data.append(post)
     return data
 
-def es_hate2(files=None, local=False, silent=True):
+def es_hate2(files=None, local=LOCAL, silent=True):
     """
     violentometro-online 
     4100 bsp (facebook comments: 1969 bsp + mex-a3t auszug: 793+1145+215=2153 bsp), classes: 0 (no-offense), 1 (offense)
     anm: returns label als int
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/es/violentometro-online/clean_comentarios_facebook.csv',
                     '/es/violentometro-online/comentarios1.csv',
@@ -1484,15 +1472,14 @@ def es_hate2(files=None, local=False, silent=True):
 
 # italian
 
-def it_hate1(files=None, local=False, silent=True):
+def it_hate1(files=None, local=LOCAL, silent=True):
     """
     Italian Hate Speech Corpus (IHSC): https://github.com/msang/hate-speech-corpus
     6928 bsp, classes: hs (yes/no), aggressiveness (weak/strong/no), offensiveness (weak/strong/no), irony (yes/no), stereotype (yes/no)
     """
 
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/it/Italian Hate Speech Corpus (IHSC)/IHSC-tweets.csv',
                     '/it/Italian Hate Speech Corpus (IHSC)/IHSC_ids.tsv']
@@ -1535,7 +1522,7 @@ it_hate2 = de_germeval
 
 # russian
 
-def ru_hate1(files=None, local=False, silent=True):
+def ru_hate1(files=None, local=LOCAL, silent=True):
     """
     russian-inappropriate-messages
     umfang (human_labeled): 7064 (train.csv), 937 (test.csv), 839 (val.csv)
@@ -1544,8 +1531,7 @@ def ru_hate1(files=None, local=False, silent=True):
     anm: returns label als int
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/ru/russian-inappropriate-messages/train.csv',
                     '/ru/russian-inappropriate-messages/test.csv',
@@ -1577,15 +1563,14 @@ def ru_hate1(files=None, local=False, silent=True):
                 data.append(post)
     return data
 
-def ru_hate2(files=None, local=False, silent=True):
+def ru_hate2(files=None, local=LOCAL, silent=True):
     """
     Russian Language Toxic Comments
     27857 bsp, classes: non-toxic (0.0), toxic (1.0)
     anm: returns label als int
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/ru/Russian Language Toxic Comments/labeled.csv']
 
@@ -1606,14 +1591,13 @@ def ru_hate2(files=None, local=False, silent=True):
         data.append(post)
     return data
 
-def ru_hate3(files=None, local=False, silent=True):
+def ru_hate3(files=None, local=LOCAL, silent=True):
     """
     RuEthnoHate
     5594 bsp, classes: -1	(negative), 0 (neutral), 1 (positive)
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/ru/RuEthnoHate/RuEthnoHate.json']
 
@@ -1637,14 +1621,13 @@ def ru_hate3(files=None, local=False, silent=True):
 
 # french
 
-def fr_hate1(files=None, local=False, silent=True):
+def fr_hate1(files=None, local=LOCAL, silent=True):
     """
     help_dicrah
     4k bsp, classes: N (neutral), S/H/SH (violent/racist), ENG (nicht weiter kategorisiertes englisch), PUB (spam)
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/fr/help_dicrah/data/tweets_labeled_4k_cleaned.csv']
         
@@ -1674,15 +1657,14 @@ def fr_hate1(files=None, local=False, silent=True):
 
 # arabic
 
-def ar_hate1(files=None, local=False, silent=True):
+def ar_hate1(files=None, local=LOCAL, silent=True):
     """
     Aljazeera Deleted Comments
     32k bsp, classes: 0 (clean), -1 (offensive), -2 (obscene)
     anm: returns label als int
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/ar/Aljazeera Deleted Comments/AJCommentsClassification-CF.xlsx']
         
@@ -1706,14 +1688,13 @@ def ar_hate1(files=None, local=False, silent=True):
         data.append(post)
     return data
 
-def ar_hate2(files=None, local=False, silent=True):
+def ar_hate2(files=None, local=LOCAL, silent=True):
     """
     Corpus_of_offensive_language_in_Arabic
     15k bsp, classes: N (negative = non-offense), P (positive = offense)
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/ar/Corpus_of_offensive_language_in_Arabic/LabeledDataset.xlsx']
         
@@ -1752,15 +1733,14 @@ def ar_hate2(files=None, local=False, silent=True):
 
 # portuguese
 
-def pt_hate1(files=None, local=False, silent=True):
+def pt_hate1(files=None, local=LOCAL, silent=True):
     """
     OffComBR
     2290 bsp, classes: offense (yes), non-offense (no)
     anm: returns label als int
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/pt/OffComBR/OffComBR2.csv',
                     '/pt/OffComBR/OffComBR3.csv']
@@ -1787,15 +1767,14 @@ def pt_hate1(files=None, local=False, silent=True):
             data.append(post)
     return data
 
-def pt_hate2(files=None, local=False, silent=True):
+def pt_hate2(files=None, local=LOCAL, silent=True):
     """
     Portuguese-Hate-Speech-Dataset
     7479 bsp, classes: hate (1), non-hate (0)
     anm: returns label als int
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/pt/Portuguese-Hate-Speech-Dataset/2019-05-28_portuguese_hate_speech_binary_classification.csv']
         
@@ -1816,7 +1795,7 @@ def pt_hate2(files=None, local=False, silent=True):
         data.append(post)
     return data
 
-def pt_hate3(files=None, local=False, silent=True):
+def pt_hate3(files=None, local=LOCAL, silent=True):
     """
     ToLD-Br
     21k bsp, classes: text, homophobia, obscene, insult, racism, misogyny, xenophobia
@@ -1824,8 +1803,7 @@ def pt_hate3(files=None, local=False, silent=True):
     anm: returns label als int
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/pt/ToLD-Br/ToLD-BR.csv']
         
@@ -1849,14 +1827,13 @@ def pt_hate3(files=None, local=False, silent=True):
 
 # turkish
 
-def tr_troff(files=None, local=False, silent=True):
+def tr_troff(files=None, local=LOCAL, silent=True):
     """
     troff
     36k bsp, classes: non-offensive (non), offensive (prof, grp, ind, oth)
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/tr/troff/troff-v1.0.tsv']
         
@@ -1880,14 +1857,13 @@ def tr_troff(files=None, local=False, silent=True):
 
 # korean
 
-def ko_hatescore(files=None, local=False, silent=True):
+def ko_hatescore(files=None, local=LOCAL, silent=True):
     """
     hatescore-korean-hate-speech
     11k bsp, classes: 혐오발언 (= hate speech), Clean
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/ko/hatescore-korean-hate-speech/HateScore.csv']
         
@@ -1911,14 +1887,13 @@ def ko_hatescore(files=None, local=False, silent=True):
 
 # hindi
 
-def hi_constraint(files=None, local=False, silent=True):
+def hi_constraint(files=None, local=LOCAL, silent=True):
     """
     Constraint_AAAI2021
     8k bsp, classes: non-offensive ('non-hostile'), offensive ('hate', 'offensive'), other ('fake', 'defamation')
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/hi/Constraint_AAAI2021/constraint_Hindi_Train.xlsx',
                     '/hi/Constraint_AAAI2021/Constraint_Hindi_Valid.xlsx',
@@ -1950,14 +1925,13 @@ def hi_constraint(files=None, local=False, silent=True):
 
 # greek
 
-def el_offense20(files=None, local=False, silent=True):
+def el_offense20(files=None, local=LOCAL, silent=True):
     """
     greek offenseval 2020
     10k bsp, classes: OFF, NOT
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/el/offenseval2020-greek/offenseval-gr-training-v1/offenseval-gr-training-v1.tsv',
                     '/el/offenseval2020-greek/offenseval-gr-testsetv1/offenseval-gr-test-v1-combined.tsv']
@@ -1987,14 +1961,13 @@ def el_offense20(files=None, local=False, silent=True):
 
 # indonesian
 
-def id_hate1(files=None, local=False, silent=True):
+def id_hate1(files=None, local=LOCAL, silent=True):
     """
     id-hatespeech-detection
     700 bsp, classes: HS, Non_HS
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/id/id-hatespeech-detection/IDHSD_RIO_unbalanced_713_2017.txt']
         
@@ -2015,15 +1988,14 @@ def id_hate1(files=None, local=False, silent=True):
         data.append(post)
     return data
 
-def id_hate2(files=None, local=False, silent=True):
+def id_hate2(files=None, local=LOCAL, silent=True):
     """
     id-multi-label-hate-speech-and-abusive-language-detection
     13k bsp, classes: 0, 1
     columns: Tweet,HS,Abusive,HS_Individual,HS_Group,HS_Religion,HS_Race,HS_Physical,HS_Gender,HS_Other,HS_Weak,HS_Moderate,HS_Strong
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/id/id-multi-label-hate-speech-and-abusive-language-detection/re_dataset.csv']
         
@@ -2047,14 +2019,13 @@ def id_hate2(files=None, local=False, silent=True):
 
 # maharati
 
-def mr_mahahate(files=None, local=False, silent=True):
+def mr_mahahate(files=None, local=LOCAL, silent=True):
     """
     L3Cube-MahaHate
     37k bsp, classes: HOF, NOT
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/mr/L3Cube-MahaHate/2-class/hate_bin_train.xlsx',
                     '/mr/L3Cube-MahaHate/2-class/hate_bin_valid.xlsx',
@@ -2086,14 +2057,13 @@ def mr_mahahate(files=None, local=False, silent=True):
 
 # polish
 
-def pl_poleval19(files=None, local=False, silent=True):
+def pl_poleval19(files=None, local=LOCAL, silent=True):
     """
     PolEval_2019
     11k bsp, classes: 0, 1 + multiclass: 0 (non-harmful), 1 (cyberbullying), 2 (hate-speech)
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/pl/PolEval_2019/data/training_set_texts.txt',
                     '/pl/PolEval_2019/data/training_set_tags.txt']
@@ -2129,14 +2099,13 @@ def pl_poleval19(files=None, local=False, silent=True):
 
 # vietnamese
 
-def vi_vihsd(files=None, local=False, silent=True):
+def vi_vihsd(files=None, local=LOCAL, silent=True):
     """
     vihsd
     33k bsp, classes: 0 (clean), 1 (offensive), 2 (hate)
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/vi/vihsd/data/train.csv',
                     '/vi/vihsd/data/dev.csv',
@@ -2170,14 +2139,13 @@ def vi_vihsd(files=None, local=False, silent=True):
 
 # danish
 
-def da_dkhate(files=None, local=False, silent=True):
+def da_dkhate(files=None, local=LOCAL, silent=True):
     """
     dkhate
     3k bsp, classes: OFF, NOT
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/da/dkhate/oe20da_data/offenseval-da-training-v1.tsv',
                     '/da/dkhate/oe20da_data/offenseval-da-test-v1.tsv']
@@ -2209,15 +2177,14 @@ def da_dkhate(files=None, local=False, silent=True):
 
 # dutch
 
-def nl_dalc(files=None, local=False, silent=True):
+def nl_dalc(files=None, local=LOCAL, silent=True):
     """
     DALC
     11k bsp, classes: NOT, EXPLICIT, IMPLICIT
     columns: id,abusive,offensive_aggregated,target_aggregated,abusive_offensive_not,offense_a1,offense_a2,offense_a3,offense_a4,target_a1,target_a2,target_a3,target_a4
     """
     if local == False:
-        db = MongoClient(DB_ADDR)
-        fs = gridfs.GridFS(db[DB_NAME])
+        fs = datalake(local)
         if not files:
             files = ['/nl/DALC/v2.0/data/DALC-2_train-tweets.jsonl',
                     '/nl/DALC/v2.0/data/DALC-2_train.csv']
