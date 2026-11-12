@@ -485,12 +485,9 @@ def en_hate1(files=None, local=LOCAL, silent=True):
         f = open(files[0], 'r', encoding='utf-8')
     
     data = []
-    for line in f:
-        if str(line).startswith(','):  # omit header
-            continue
-            
-        entry = line.split(',')
-        text = entry[6].rstrip()
+    df = pd.read_csv(f, dtype=str, keep_default_na=False)  # tweets contain commas and line breaks
+    for i, row in df.iterrows():
+        text = row['tweet'].rstrip()
 
         if text == '':
             if silent == False:
@@ -499,15 +496,15 @@ def en_hate1(files=None, local=LOCAL, silent=True):
 
         post = {}
         post['text'] = text
-        if entry[5] == '0':
+        if row['class'] == '0':
             post['label'] = 'hate_speech'
-        elif entry[5] == '1':
+        elif row['class'] == '1':
             post['label'] = 'offensive_language'
-        elif entry[5] == '2':
+        elif row['class'] == '2':
             post['label'] = 'neither'
         else:
             if silent == False:
-                print('LABEL ERROR: %s' % (entry[5]))
+                print('LABEL ERROR: %s' % (row['class']))
             continue
 
         data.append(post)
