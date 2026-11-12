@@ -60,6 +60,25 @@ A collection of data set loading functions.
 
 `pip install git+https://github.com/neospe/dataload`
 
+for loading from a MongoDB/gridFS data lake (see [datalake](https://github.com/neospe/datalake)):
+
+`pip install "dataload[datalake] @ git+https://github.com/neospe/dataload"`
+
+## usage
+
+By default, data sets are read from the local file system, below `data/` in the working directory. The default paths follow the layout of the original repositories, e.g.:
+
+```bash
+git clone https://github.com/t-davidson/hate-speech-and-offensive-language data/en/hate-speech-and-offensive-language
+```
+
+```python
+from dataload.loader import en_hate1
+data = en_hate1()  # [{'text': ..., 'label': ...}, ...]
+```
+
+Other locations can be passed with `files=[...]`. If `DATALAKE_ADDR` is set (e.g. `127.0.0.1:27017`), data sets are loaded from gridFS instead.
+
 ## good to know
 
 - `dataload` is built into [augment](https://github.com/neospe/augment), [bpemb](https://github.com/neospe/bpemb), and [autofit](https://github.com/neospe/autofit) as well as [autofit2](https://github.com/neospe/autofit2).
