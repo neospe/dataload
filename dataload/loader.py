@@ -88,9 +88,9 @@ def augmentations(files=None, local=LOCAL, silent=True):
                 print('%s (%s)' % (config['dataset_name'], uid))
 
                 if local == False:
-                    data += germeval([uid+'.txt$'], local=False)
+                    data += de_germeval([uid+'.txt$'], local=False)
                 else:
-                    data += germeval([AUGS_BASEPATH+'/'+uid+'.txt'], local=True)
+                    data += de_germeval([AUGS_BASEPATH+'/'+uid+'.txt'], local=True)
     
     return data
 
